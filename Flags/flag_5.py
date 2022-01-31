@@ -112,6 +112,11 @@ def get_regions(graph, tree=None, max_accumulation=100000):
 
 # Returns the set of boundary nodes for each region in a given graph
 def get_boundary_nodes(graph, tree=None):
+    global regions_info
+    
+    if not regions_info:
+        regions_info = get_regions(graph)
+        
     region_set = regions_info
     
     boundary_nodes = dict()
@@ -212,3 +217,139 @@ def dfs(graph, visited, region_data, s, t, distance):
     # Every possible edge with region's t bit set to true has been tested
     return False
 
+
+#### DEBUG ####
+    
+vert_filename = sys.argv[1]
+edge_filename = sys.argv[2]
+max_accumulation = int(sys.argv[3])
+save_filename = sys.argv[4]
+
+def print_time(message):
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    #print(message, current_time, flush=True)
+
+graph = Graph2D()
+
+def simple_test():  
+    for i in range(13):
+        graph.add_vertex(i, Point2D(0, i))
+
+    graph.add_edge(0, 1, 2, 10)
+    graph.add_edge(1, 2, 1, 20)
+    graph.add_edge(2, 5, 7, 30)
+    graph.add_edge(3, 5, 7, 40)
+    graph.add_edge(35, 0, 4, 100)
+    graph.add_edge(4, 0, 1, 50)# 8, 50, 4)
+    graph.add_edge(5, 4, 1, 60)
+    graph.add_edge(6, 7, 8, 70)
+    graph.add_edge(7, 8, 7, 80)
+    graph.add_edge(8, 8, 5, 90)
+    graph.add_edge(9, 7, 2, 100)
+    graph.add_edge(10, 11, 12, 10)
+    graph.add_edge(11, 11, 6, 10)
+    
+    ea = EdgeWithArcs(17, 18, 19, 20, 4)
+    ea.update_arc_flag_value(3, 1)
+
+
+
+#with open(vert_filename) as vert_filestream, open(edge_filename) as edge_filestream:
+#    parser = GraphParser()
+#    parser.parse_csv(vert_filestream, edge_filestream)
+
+#    graph = parser.get_graph()
+ 
+simple_test()
+ 
+test_graph_with_arcs = Graph2DWithArcs(graph)
+
+del graph
+gc.collect()
+
+print_time("Current Time 1")
+
+regions_info = get_regions(test_graph_with_arcs, max_accumulation=6)
+
+print_time("Current Time 2 =")
+
+boundary_nodes_info = get_boundary_nodes(test_graph_with_arcs)
+
+#### PREPROCESSING ####
+
+
+print_time("Current Time 3 =")
+
+# Setting arc-flag value for edges with equal vertex-regions
+for vertex in test_graph_with_arcs.get_vertices():
+    for edge in vertex.get_edges():
+        v1_id , v2_id = edge.vert1.id , edge.vert2.id
+        
+        if regions_info[v1_id] == regions_info[v2_id]:
+            edge.update_arc_flag_value(regions_info[v1_id], 1)
+
+print_time("Current Time 4 =")
+
+def dijktras_cnt():
+    cnt = 0
+    
+    visited = [False for i in range(len(test_graph_with_arcs.get_vertices()))]
+
+    for region in boundary_nodes_info.keys():
+        for boundary_node in boundary_nodes_info[region]:
+            for edge in test_graph_with_arcs.get_vertex(boundary_node).get_edges():
+                v1 , v2 = edge.vert1 , edge.vert2
+                
+                if regions_info[v1.id] != regions_info[v2.id]:
+                    if not visited[v1.id]:
+                        cnt += 1
+                        visited[v1.id] = True
+                    if not visited[v2.id]:
+                        cnt += 1
+                        visited[v2.id] = True
+    return cnt
+
+sum_cnt = dijktras_cnt()
+global_cnt = 0
+visited = [False for i in range(len(test_graph_with_arcs.get_vertices()))]
+
+# Run one Dijkstra per region
+def dijkstra_with_supervertices():
+    for region in boundary_nodes_info.keys():
+        for boundary_node in boundary_nodes_info[region]:
+            print_time("Current Time =")
+            
+            dijkstra(test_graph_with_arcs.get_vertex(boundary_node))
+            break
+
+# Setting arc-flag values for tree made by Dijkstra starting from boundary nodes
+def old_dijkstra():
+    for region in boundary_nodes_info.keys():
+        for boundary_node in boundary_nodes_info[region]:
+            for edge in test_graph_with_arcs.get_vertex(boundary_node).get_edges():
+                v1 , v2 = edge.vert1 , edge.vert2
+                
+                if regions_info[v1.id] != regions_info[v2.id]:
+                    if not visited[v1.id]:
+                        dijkstra(test_graph_with_arcs.get_vertex(v1.id))
+                        visited[v1.id] = True
+                        global_cnt += 1
+                    if not visited[v2.id]:
+                        dijkstra(test_graph_with_arcs.get_vertex(v2.id))
+                        visited[v2.id] = True
+                        global_cnt += 1
+
+dijkstra_with_supervertices()
+
+##### TESTS #####
+
+print_time("Current Time 5 =")
+
+for edge in test_graph_with_arcs.get_edges():
+    print(edge)
+
+dijkstra(test_graph_with_arcs.get_vertex(8), test_graph_with_arcs.get_vertex(4), use_arcs=True)
+
+#print(test_graph_with_arcs, flush=True)
+#dfs(test_graph_with_arcs, set(), regions_info, test_graph_with_arcs.get_vertex(1), test_graph_with_arcs.get_vertex(5), 0)
