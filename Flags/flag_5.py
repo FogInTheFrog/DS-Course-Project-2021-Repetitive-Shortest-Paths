@@ -112,10 +112,7 @@ def get_regions(graph, tree=None, max_accumulation=100000):
 
 # Returns the set of boundary nodes for each region in a given graph
 def get_boundary_nodes(graph, tree=None):
-    global regions_info
-    
-    if not regions_info:
-        regions_info = get_regions(graph)
+    regions_info = get_regions(graph)
         
     region_set = regions_info
     
