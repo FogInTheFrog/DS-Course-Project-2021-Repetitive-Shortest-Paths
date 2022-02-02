@@ -1,0 +1,3 @@
+[submodule "Pathfinder"]
+	path = Pathfinder
+	url = git@github.com:j-kk/Distributed-Path-Finder.git
